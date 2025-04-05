@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-PeliculasApplication<peliculas>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.duoc.peliculas.PeliculasApplication",
+            "projectName": "peliculas",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
