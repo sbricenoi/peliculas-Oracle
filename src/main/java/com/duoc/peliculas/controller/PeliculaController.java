@@ -1,6 +1,8 @@
 package com.duoc.peliculas.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -9,6 +11,9 @@ import com.duoc.peliculas.repository.PeliculaRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
 
 @RestController
 @RequestMapping("/peliculas")
@@ -17,31 +22,44 @@ public class PeliculaController {
     @Autowired
     private PeliculaRepository peliculaRepository;
 
-    // Endpoint para obtener información detallada de una película por su ID
+    // Endpoint para obtener información detallada de una película por su ID con HATEOAS
     @GetMapping("/{id}")
-    public ResponseEntity<Pelicula> obtenerPeliculaPorId(@PathVariable Long id) {
+    public ResponseEntity<EntityModel<Pelicula>> obtenerPeliculaPorId(@PathVariable Long id) {
         Optional<Pelicula> pelicula = peliculaRepository.findById(id);
-        return pelicula.map(ResponseEntity::ok)
-                       .orElse(ResponseEntity.notFound().build());
+        return pelicula.map(p -> {
+            EntityModel<Pelicula> model = EntityModel.of(p);
+            model.add(linkTo(methodOn(PeliculaController.class).obtenerPeliculaPorId(id)).withSelfRel());
+            model.add(linkTo(methodOn(PeliculaController.class).obtenerTodasLasPeliculas()).withRel("todas-peliculas"));
+            return ResponseEntity.ok(model);
+        }).orElse(ResponseEntity.notFound().build());
     }
 
-    // Endpoint para obtener todas las películas registradas
+    // Endpoint para obtener todas las películas con HATEOAS
     @GetMapping
-    public ResponseEntity<List<Pelicula>> obtenerTodasLasPeliculas() {
-        List<Pelicula> peliculas = peliculaRepository.findAll();
+    public ResponseEntity<List<EntityModel<Pelicula>>> obtenerTodasLasPeliculas() {
+        List<EntityModel<Pelicula>> peliculas = peliculaRepository.findAll().stream()
+            .map(pelicula -> {
+                EntityModel<Pelicula> model = EntityModel.of(pelicula);
+                model.add(linkTo(methodOn(PeliculaController.class).obtenerPeliculaPorId(pelicula.getId())).withSelfRel());
+                return model;
+            })
+            .collect(Collectors.toList());
+        
         return ResponseEntity.ok(peliculas);
     }
 
-    // Endpoint para crear una nueva película
+    // Endpoint para crear una nueva película con HATEOAS
     @PostMapping
-    public ResponseEntity<Pelicula> crearPelicula(@RequestBody Pelicula pelicula) {
+    public ResponseEntity<EntityModel<Pelicula>> crearPelicula(@RequestBody Pelicula pelicula) {
         Pelicula nuevaPelicula = peliculaRepository.save(pelicula);
-        return ResponseEntity.ok(nuevaPelicula);
+        EntityModel<Pelicula> model = EntityModel.of(nuevaPelicula);
+        model.add(linkTo(methodOn(PeliculaController.class).obtenerPeliculaPorId(nuevaPelicula.getId())).withSelfRel());
+        return ResponseEntity.ok(model);
     }
 
-    // Endpoint para actualizar una película existente
+    // Endpoint para actualizar una película existente con HATEOAS
     @PutMapping("/{id}")
-    public ResponseEntity<Pelicula> actualizarPelicula(@PathVariable Long id, @RequestBody Pelicula detallesPelicula) {
+    public ResponseEntity<EntityModel<Pelicula>> actualizarPelicula(@PathVariable Long id, @RequestBody Pelicula detallesPelicula) {
         return peliculaRepository.findById(id)
             .map(peliculaExistente -> {
                 peliculaExistente.setTitulo(detallesPelicula.getTitulo());
@@ -51,7 +69,12 @@ public class PeliculaController {
                 peliculaExistente.setSinopsis(detallesPelicula.getSinopsis());
                 
                 Pelicula peliculaActualizada = peliculaRepository.save(peliculaExistente);
-                return ResponseEntity.ok(peliculaActualizada);
+                
+                EntityModel<Pelicula> model = EntityModel.of(peliculaActualizada);
+                model.add(linkTo(methodOn(PeliculaController.class).obtenerPeliculaPorId(id)).withSelfRel());
+                model.add(linkTo(methodOn(PeliculaController.class).obtenerTodasLasPeliculas()).withRel("todas-peliculas"));
+                
+                return ResponseEntity.ok(model);
             })
             .orElse(ResponseEntity.notFound().build());
     }
@@ -66,5 +89,4 @@ public class PeliculaController {
             })
             .orElse(ResponseEntity.notFound().build());
     }
-
 } 
